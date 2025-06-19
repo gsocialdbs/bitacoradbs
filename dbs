@@ -1,0 +1,7 @@
+echo "# bitacoradbs" >> README.md 
+git init 
+git add README.md 
+git commit -m "primer commit" 
+git branch -M main 
+git remote add origin https://https://nerd-lat-meditrack-5721.netlify.app/
+ git push -u origin main
