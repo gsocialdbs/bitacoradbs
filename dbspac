@@ -1,0 +1,1062 @@
+<html lang="es">
+      <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>MediTrack</title>
+          
+          <!-- Meta tags para redes sociales -->
+          <meta property="og:image" content="https://4tsix0yujj.ufs.sh/f/2vMRHqOYUHc0K5prXUEjR7oilQcqGuVyEA8Sm1pf4v95nLIB" />
+          <meta property="og:image:alt" content="Imagen del proyecto" />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:image" content="https://4tsix0yujj.ufs.sh/f/2vMRHqOYUHc0K5prXUEjR7oilQcqGuVyEA8Sm1pf4v95nLIB" />
+
+          <!-- TailwindCSS CDN -->
+          <script src="https://cdn.tailwindcss.com"></script>
+
+          <!-- React & Babel -->
+          <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+          <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+        </head>
+        <body>
+          <div id="root"></div>
+
+          <script type="text/babel">
+const { useState, useEffect, useRef, useMemo, createContext, useContext, StrictMode } = React;
+            const { createRoot } = ReactDOM;
+
+            // /utils/storage.js
+const useLocalStorage = (key, initialValue) => {
+  const [storedValue, setStoredValue] = useState(() => {
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error('Error reading from localStorage', error);
+      return initialValue;
+    }
+  });
+
+  const setValue = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.error('Error writing to localStorage', error);
+    }
+  };
+
+  return [storedValue, setValue];
+};
+
+// /components/LayoutHeader.js
+const LayoutHeader = ({ currentPage, onNavigate }) => {
+  const getTitle = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return 'Panel de Control';
+      case 'patients':
+        return 'Lista de Pacientes';
+      case 'addPatient':
+        return 'Agregar Paciente';
+      case 'patientDetail':
+        return 'Detalle del Paciente';
+      case 'reports':
+        return 'Reportes';
+      default:
+        return 'MediTrack';
+    }
+  };
+
+  return (
+    <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
+      <h1 className="text-2xl font-bold text-gray-800">{getTitle()}</h1>
+      <nav>
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          Inicio
+        </button>
+        <button
+          onClick={() => onNavigate('patients')}
+          className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors ml-2"
+        >
+          Pacientes
+        </button>
+        <button
+          onClick={() => onNavigate('reports')}
+          className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors ml-2"
+        >
+          Reportes
+        </button>
+      </nav>
+    </header>
+  );
+};
+
+// /components/PatientDetail.js
+const PatientDetail = ({ patient, onBack, onAddVisit, onEditPatient }) => {
+  const [newVisitDate, setNewVisitDate] = useState('');
+  const [newVisitNotes, setNewVisitNotes] = useState('');
+  const [newVisitProgress, setNewVisitProgress] = useState('Estable');
+  const [newVisitPhotos, setNewVisitPhotos] = useState([]);
+  const [visitorName, setVisitorName] = useState('');
+  const [visitorRank, setVisitorRank] = useState('');
+  const [visitorAddress, setVisitorAddress] = useState('');
+  const [companions, setCompanions] = useState('');
+  const [visitObservations, setVisitObservations] = useState('');
+  const [visitManagement, setVisitManagement] = useState('');
+
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const newPhotos = files.map(file => URL.createObjectURL(file));
+    setNewVisitPhotos((prevPhotos) => [...prevPhotos, ...newPhotos]);
+  };
+
+  const handleAddVisit = (e) => {
+    e.preventDefault();
+    if (!newVisitDate || !newVisitNotes || !newVisitProgress || !visitorName || !visitorRank || !visitorAddress || !visitManagement) {
+      alert('Por favor, completa los campos obligatorios de la visita: Fecha, Notas, Progreso, Nombre de quien realizó la visita, Grado, Dirección y Gestión Realizada.');
+      return;
+    }
+    onAddVisit(patient.id, {
+      date: newVisitDate,
+      notes: newVisitNotes,
+      progress: newVisitProgress,
+      photos: newVisitPhotos,
+      visitorName,
+      visitorRank,
+      visitorAddress,
+      companions,
+      visitObservations,
+      visitManagement,
+    });
+    setNewVisitDate('');
+    setNewVisitNotes('');
+    setNewVisitProgress('Estable');
+    setNewVisitPhotos([]);
+    setVisitorName('');
+    setVisitorRank('');
+    setVisitorAddress('');
+    setCompanions('');
+    setVisitObservations('');
+    setVisitManagement('');
+  };
+
+  if (!patient) {
+    return <div className="p-6 text-center text-gray-600">Paciente no encontrado.</div>;
+  }
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto bg-white rounded-2xl shadow-lg">
+      <div className="flex justify-between items-center mb-6">
+        <button
+          onClick={onBack}
+          className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          &larr; Volver a Pacientes
+        </button>
+        <h2 className="text-3xl font-bold text-gray-800">{patient.fullName}</h2>
+        <button
+          onClick={() => onEditPatient(patient.id)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+        >
+          Editar
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-gray-50 p-4 rounded-xl">
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Datos Generales</h3>
+          <p className="text-gray-700"><span className="font-medium">DNI:</span> {patient.dni}</p>
+          <p className="text-gray-700"><span className="font-medium">Grado:</span> {patient.rank}</p>
+          <p className="text-gray-700"><span className="font-medium">Asignación Actual:</span> {patient.currentAssignment}</p>
+          <p className="text-gray-700"><span className="font-medium">Dirección:</span> {patient.belongingAddress}</p>
+          <p className="text-gray-700"><span className="font-medium">Sexo:</span> {patient.gender}</p>
+          <p className="text-gray-700"><span className="font-medium">Edad:</span> {patient.age}</p>
+          <p className="text-gray-700"><span className="font-medium">Procedencia:</span> {patient.housingOrigin}</p>
+          <p className="text-gray-700"><span className="font-medium">Celular:</span> {patient.cellphone}</p>
+          <p className="text-gray-700"><span className="font-medium">Fecha Incidente:</span> {patient.incidentDate}</p>
+          <p className="text-gray-700"><span className="font-medium">Ingreso Hospital:</span> {patient.admissionDate}</p>
+          <p className="text-gray-700"><span className="font-medium">Detalles Incidente:</span> {patient.incidentDetails}</p>
+          <p className="text-gray-700"><span className="font-medium">Diagnóstico Médico:</span> {patient.medicalDiagnosis}</p>
+          <p className="text-gray-700"><span className="font-medium">Hospital:</span> {patient.hospital}</p>
+          <p className="text-gray-700"><span className="font-medium">Sala:</span> {patient.room}</p>
+          <p className="text-gray-700"><span className="font-medium">Cama:</span> {patient.bed}</p>
+          <p className="text-gray-700"><span className="font-medium">Gestión DBS:</span> {patient.dbsManagement}</p>
+          <p className="text-gray-700"><span className="font-medium">Apoyo Económico Gestionado por:</span> {patient.economicSupportManagedBy}</p>
+          <p className="text-gray-700"><span className="font-medium">Defensa Jurídica:</span> {patient.requiresLegalDefense}</p>
+          {patient.requiresLegalDefense === 'Sí' && (
+            <p className="text-gray-700"><span className="font-medium">Explicación Jurídica:</span> {patient.legalDefenseExplanation}</p>
+          )}
+          <p className="text-gray-700"><span className="font-medium">Reposo Adscrito:</span> {patient.assignedRest}</p>
+          <p className="text-gray-700"><span className="font-medium">Fecha de Alta Médica:</span> {patient.dischargeDate}</p>
+          <p className="text-gray-700"><span className="font-medium">Observaciones Generales:</span> {patient.observations}</p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-xl">
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Contacto Familiar</h3>
+          <p className="text-gray-700"><span className="font-medium">Nombre:</span> {patient.familyContact?.name}</p>
+          <p className="text-gray-700"><span className="font-medium">Parentesco:</span> {patient.familyContact?.relationship}</p>
+          <p className="text-gray-700"><span className="font-medium">Teléfono:</span> {patient.familyContact?.phone}</p>
+        </div>
+      </div>
+
+      <h3 className="text-2xl font-bold text-gray-800 mb-4">Historial de Visitas ({patient.visits.length})</h3>
+      {patient.visits.length === 0 ? (
+        <p className="text-gray-600">No hay visitas registradas para este paciente.</p>
+      ) : (
+        <div className="space-y-4">
+          {patient.visits.map((visit, index) => (
+            <div key={index} className="bg-gray-100 p-4 rounded-xl shadow-sm">
+              <p className="text-lg font-semibold text-gray-800">Fecha: {visit.date}</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Notas:</span> {visit.notes}</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Progreso:</span> {visit.progress}</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Visitante:</span> {visit.visitorName} ({visit.visitorRank})</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Dirección Visitante:</span> {visit.visitorAddress}</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Acompañantes:</span> {visit.companions}</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Observaciones Visita:</span> {visit.visitObservations}</p>
+              <p className="text-gray-700 mt-1"><span className="font-medium">Gestión Realizada:</span> {visit.visitManagement}</p>
+              {visit.photos && visit.photos.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-medium text-gray-700 mb-2">Fotos de la Visita:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {visit.photos.map((photo, photoIndex) => (
+                      <img key={photoIndex} src={photo} alt={`Visita ${index + 1} Foto ${photoIndex + 1}`} className="w-full h-24 object-cover rounded-lg shadow-sm" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-8 p-6 bg-blue-50 rounded-2xl shadow-inner">
+        <h3 className="text-2xl font-bold text-blue-800 mb-4">Registrar Nueva Visita</h3>
+        <form onSubmit={handleAddVisit}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="visitDate" className="block text-blue-700 text-sm font-medium mb-2">Fecha de Visita</label>
+              <input
+                type="date"
+                id="visitDate"
+                value={newVisitDate}
+                onChange={(e) => setNewVisitDate(e.target.value)}
+                className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
+              />
+            </div>
+            <div>
+              <label htmlFor="newVisitProgress" className="block text-blue-700 text-sm font-medium mb-2">Progreso</label>
+              <select
+                id="newVisitProgress"
+                value={newVisitProgress}
+                onChange={(e) => setNewVisitProgress(e.target.value)}
+                className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
+              >
+                <option value="Estable">Estable</option>
+                <option value="Mejorando">Mejorando</option>
+                <option value="Empeorando">Empeorando</option>
+                <option value="Crítico">Crítico</option>
+                <option value="Recuperado">Recuperado</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="newVisitNotes" className="block text-blue-700 text-sm font-medium mb-2">Notas de la Visita</label>
+              <textarea
+                id="newVisitNotes"
+                value={newVisitNotes}
+                onChange={(e) => setNewVisitNotes(e.target.value)}
+                rows="3"
+                className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition resize-none"
+                placeholder="Observaciones, tratamientos, etc."
+              ></textarea>
+            </div>
+            <div>
+              <label htmlFor="visitorName" className="block text-blue-700 text-sm font-medium mb-2">Nombre de quien realizó la visita</label>
+              <input type="text" id="visitorName" value={visitorName} onChange={(e) => setVisitorName(e.target.value)} className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition" placeholder="Ej. Agente Castillo" />
+            </div>
+            <div>
+              <label htmlFor="visitorRank" className="block text-blue-700 text-sm font-medium mb-2">Grado</label>
+              <input type="text" id="visitorRank" value={visitorRank} onChange={(e) => setVisitorRank(e.target.value)} className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition" placeholder="Ej. Clase I" />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="visitorAddress" className="block text-blue-700 text-sm font-medium mb-2">Dirección</label>
+              <input type="text" id="visitorAddress" value={visitorAddress} onChange={(e) => setVisitorAddress(e.target.value)} className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition" placeholder="Ej. Dirección de Bienestar Social" />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="companions" className="block text-blue-700 text-sm font-medium mb-2">Acompañantes</label>
+              <input type="text" id="companions" value={companions} onChange={(e) => setCompanions(e.target.value)} className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition" placeholder="Ej. Agente Calix" />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="visitObservations" className="block text-blue-700 text-sm font-medium mb-2">Observaciones de la Visita</label>
+              <textarea id="visitObservations" value={visitObservations} onChange={(e) => setVisitObservations(e.target.value)} rows="3" className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition resize-none" placeholder="Ej. Paciente urge gestión con cirugía para que lo pasen a cirugía urgente y gestionar dos pintas de sangre."></textarea>
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="visitManagement" className="block text-blue-700 text-sm font-medium mb-2">Gestión Realizada</label>
+              <textarea id="visitManagement" value={visitManagement} onChange={(e) => setVisitManagement(e.target.value)} rows="3" className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition resize-none" placeholder="Ej. Se habló con el departamento de enfermería para su mejor atención."></textarea>
+            </div>
+          </div>
+          <div className="mb-6">
+            <label htmlFor="visitPhotos" className="block text-blue-700 text-sm font-medium mb-2">Subir Fotos</label>
+            <input
+              type="file"
+              id="visitPhotos"
+              multiple
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {newVisitPhotos.length > 0 && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {newVisitPhotos.map((photo, index) => (
+                  <img key={index} src={photo} alt={`Preview ${index}`} className="w-full h-20 object-cover rounded-lg" />
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-blue-700 transition-colors duration-300"
+            >
+              Registrar Visita
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// /mock/patients.js
+const initialPatients = [
+  {
+    id: '1',
+    fullName: 'Juan Pérez García',
+    dni: '12345678A',
+    rank: 'Sargento',
+    currentAssignment: 'Urgencias',
+    belongingAddress: 'Calle Falsa 123, Springfield',
+    gender: 'Masculino',
+    age: 45,
+    housingOrigin: 'Urbana',
+    cellphone: '5512345678',
+    incidentDate: '2023-01-09',
+    admissionDate: '2023-01-10',
+    incidentDetails: 'Caída de altura en obra de construcción.',
+    medicalDiagnosis: 'Fractura de fémur derecho',
+    hospital: 'Hospital Central',
+    room: '201',
+    bed: 'B',
+    dbsManagement: 'Se coordinó traslado y admisión.',
+    economicSupportManagedBy: 'Fondos de la Dirección de Bienestar Social',
+    visitsCount: 2,
+    requiresLegalDefense: 'Sí',
+    legalDefenseExplanation: 'Accidente laboral, se requiere asesoría para indemnización.',
+    assignedRest: '90 días',
+    dischargeDate: '2023-04-10',
+    observations: 'Paciente con buena recuperación, requiere seguimiento ambulatorio.',
+    familyContact: {
+      name: 'Ana García',
+      relationship: 'Esposa',
+      phone: '5587654321',
+      visitorName: 'Agente Castillo', // Nuevo campo
+      visitorRank: 'Clase I', // Nuevo campo
+      visitorAddress: 'Dirección de Bienestar Social', // Nuevo campo
+      companions: 'Agente Calix', // Nuevo campo
+      visitObservations: 'Se verificó estado del paciente y se informó a la familia sobre el proceso de recuperación.', // Nuevo campo
+    },
+    visits: [
+      {
+        date: '2023-01-10',
+        notes: 'Paciente ingresa con fractura expuesta. Se estabiliza y prepara para cirugía.',
+        progress: 'Estable',
+        photos: [],
+        visitorName: 'Dr. Carlos Ruiz',
+        visitorRank: 'Capitán',
+        visitorAddress: 'Dirección Médica',
+        companions: 'Enfermera Laura',
+        visitObservations: 'Se verificó estado inicial y se coordinó con cirugía.',
+        visitManagement: 'Coordinación de quirófano y equipo médico.',
+      },
+      {
+        date: '2023-01-12',
+        notes: 'Post-operatorio inmediato. Dolor controlado. Se inicia fisioterapia pasiva.',
+        progress: 'Mejorando',
+        photos: [],
+        visitorName: 'Lic. Sofía Hernández',
+        visitorRank: 'Trabajadora Social',
+        visitorAddress: 'Dirección de Bienestar Social',
+        companions: 'Ninguno',
+        visitObservations: 'Se evaluó situación familiar y necesidad de apoyo.',
+        visitManagement: 'Inicio de trámite para apoyo económico.',
+      },
+    ],
+  },
+  {
+    id: '2',
+    fullName: 'María García López',
+    dni: '87654321B',
+    rank: 'Cabo',
+    currentAssignment: 'Pediatría',
+    belongingAddress: 'Avenida Siempre Viva 742, Springfield',
+    gender: 'Femenino',
+    age: 8,
+    housingOrigin: 'Rural',
+    cellphone: '5598765432',
+    incidentDate: '2023-01-14',
+    admissionDate: '2023-01-15',
+    incidentDetails: 'Fiebre alta y dificultad respiratoria, posible bronquiolitis.',
+    medicalDiagnosis: 'Neumonía atípica',
+    hospital: 'Hospital Infantil',
+    room: '305',
+    bed: 'A',
+    dbsManagement: 'Se gestionó cama y equipo de nebulización.',
+    economicSupportManagedBy: 'Fondos de la Secretaría de Seguridad',
+    visitsCount: 2,
+    requiresLegalDefense: 'No',
+    legalDefenseExplanation: '',
+    assignedRest: '15 días',
+    dischargeDate: '2023-01-30',
+    observations: 'Paciente dada de alta con indicaciones para seguimiento en casa.',
+    familyContact: {
+      name: 'Pedro García',
+      relationship: 'Padre',
+      phone: '5511223344',
+      visitorName: 'Agente Smith', // Nuevo campo
+      visitorRank: 'Clase II', // Nuevo campo
+      visitorAddress: 'Dirección de Bienestar Social', // Nuevo campo
+      companions: 'Agente Jones', // Nuevo campo
+      visitObservations: 'Se coordinó con la familia para el alta y el transporte del paciente.', // Nuevo campo
+    },
+    visits: [
+      {
+        date: '2023-01-15',
+        notes: 'Paciente con dificultad respiratoria y tos productiva. Se inicia oxigenoterapia.',
+        progress: 'Crítico',
+        photos: [],
+        visitorName: 'Dra. Elena Soto',
+        visitorRank: 'Residente',
+        visitorAddress: 'Servicio de Pediatría',
+        companions: 'Padres del paciente',
+        visitObservations: 'Se explicó el diagnóstico y plan de tratamiento.',
+        visitManagement: 'Ajuste de parámetros de oxígeno.',
+      },
+      {
+        date: '2023-01-17',
+        notes: 'Mejora en la saturación de oxígeno, tos menos frecuente. Se evalúa retiro de oxígeno.',
+        progress: 'Estable',
+        photos: [],
+        visitorName: 'Enf. Miguel Torres',
+        visitorRank: 'Enfermero',
+        visitorAddress: 'Hospital Infantil',
+        companions: 'Ninguno',
+        visitObservations: 'Se realizó nebulización y control de signos vitales.',
+        visitManagement: 'Monitoreo continuo de saturación.',
+      },
+    ],
+  },
+];
+
+// /components/PatientForm.js
+const PatientForm = ({ onSavePatient, patientToEdit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    fullName: '',
+    dni: '',
+    rank: '',
+    currentAssignment: '',
+    belongingAddress: '',
+    gender: '',
+    age: '',
+    housingOrigin: '',
+    cellphone: '',
+    incidentDate: '',
+    admissionDate: '',
+    incidentDetails: '',
+    medicalDiagnosis: '',
+    hospital: '',
+    room: '',
+    bed: '',
+    dbsManagement: '',
+    economicSupportManagedBy: '',
+    requiresLegalDefense: 'No',
+    legalDefenseExplanation: '',
+    assignedRest: '',
+    dischargeDate: '',
+    observations: '',
+    familyContactName: '',
+    familyContactRelationship: '',
+    familyContactPhone: '',
+    familyVisitorName: '', // Nuevo campo
+    familyVisitorRank: '', // Nuevo campo
+    familyVisitorAddress: '', // Nuevo campo
+    familyCompanions: '', // Nuevo campo
+    familyVisitObservations: '', // Nuevo campo
+    initialVisitNotes: '',
+  });
+
+  useEffect(() => {
+    if (patientToEdit) {
+      setFormData({
+        fullName: patientToEdit.fullName || '',
+        dni: patientToEdit.dni || '',
+        rank: patientToEdit.rank || '',
+        currentAssignment: patientToEdit.currentAssignment || '',
+        belongingAddress: patientToEdit.belongingAddress || '',
+        gender: patientToEdit.gender || '',
+        age: patientToEdit.age || '',
+        housingOrigin: patientToEdit.housingOrigin || '',
+        cellphone: patientToEdit.cellphone || '',
+        incidentDate: patientToEdit.incidentDate || '',
+        admissionDate: patientToEdit.admissionDate || '',
+        incidentDetails: patientToEdit.incidentDetails || '',
+        medicalDiagnosis: patientToEdit.medicalDiagnosis || '',
+        hospital: patientToEdit.hospital || '',
+        room: patientToEdit.room || '',
+        bed: patientToEdit.bed || '',
+        dbsManagement: patientToEdit.dbsManagement || '',
+        economicSupportManagedBy: patientToEdit.economicSupportManagedBy || '',
+        requiresLegalDefense: patientToEdit.requiresLegalDefense || 'No',
+        legalDefenseExplanation: patientToEdit.legalDefenseExplanation || '',
+        assignedRest: patientToEdit.assignedRest || '',
+        dischargeDate: patientToEdit.dischargeDate || '',
+        observations: patientToEdit.observations || '',
+        familyContactName: patientToEdit.familyContact?.name || '',
+        familyContactRelationship: patientToEdit.familyContact?.relationship || '',
+        familyContactPhone: patientToEdit.familyContact?.phone || '',
+        familyVisitorName: patientToEdit.familyContact?.visitorName || '', // Nuevo campo
+        familyVisitorRank: patientToEdit.familyContact?.visitorRank || '', // Nuevo campo
+        familyVisitorAddress: patientToEdit.familyContact?.visitorAddress || '', // Nuevo campo
+        familyCompanions: patientToEdit.familyContact?.companions || '', // Nuevo campo
+        familyVisitObservations: patientToEdit.familyContact?.visitObservations || '', // Nuevo campo
+        initialVisitNotes: patientToEdit.visits[0]?.notes || '',
+      });
+    }
+  }, [patientToEdit]);
+
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const {
+      fullName, dni, rank, currentAssignment, belongingAddress, gender, age, housingOrigin, cellphone,
+      incidentDate, admissionDate, incidentDetails, medicalDiagnosis, hospital, room, bed,
+      dbsManagement, economicSupportManagedBy, requiresLegalDefense, legalDefenseExplanation, assignedRest,
+      dischargeDate, observations,
+      familyContactName, familyContactRelationship, familyContactPhone,
+      familyVisitorName, familyVisitorRank, familyVisitorAddress, familyCompanions, familyVisitObservations,
+      initialVisitNotes
+    } = formData;
+
+    if (!fullName || !dni || !medicalDiagnosis || !hospital || !admissionDate) {
+      alert('Por favor, completa los campos obligatorios: Nombre Completo, DNI, Diagnóstico Médico, Hospital y Fecha de Ingreso.');
+      return;
+    }
+
+    const newPatient = {
+      id: patientToEdit?.id || Date.now().toString(),
+      fullName,
+      dni,
+      rank,
+      currentAssignment,
+      belongingAddress,
+      gender,
+      age: parseInt(age, 10) || 0,
+      housingOrigin,
+      cellphone,
+      incidentDate,
+      admissionDate,
+      incidentDetails,
+      medicalDiagnosis,
+      hospital,
+      room,
+      bed,
+      dbsManagement,
+      economicSupportManagedBy,
+      visitsCount: patientToEdit?.visits?.length || 1,
+      requiresLegalDefense,
+      legalDefenseExplanation,
+      assignedRest,
+      dischargeDate,
+      observations,
+      familyContact: {
+        name: familyContactName,
+        relationship: familyContactRelationship,
+        phone: familyContactPhone,
+        visitorName: familyVisitorName, // Nuevo campo
+        visitorRank: familyVisitorRank, // Nuevo campo
+        visitorAddress: familyVisitorAddress, // Nuevo campo
+        companions: familyCompanions, // Nuevo campo
+        visitObservations: familyVisitObservations, // Nuevo campo
+      },
+      visits: patientToEdit?.visits || [{ date: admissionDate, notes: initialVisitNotes, progress: 'Inicial', photos: [], visitorName: '', visitorRank: '', visitorAddress: '', companions: '', visitObservations: '', visitManagement: '' }],
+    };
+    onSavePatient(newPatient);
+  };
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto bg-white rounded-2xl shadow-lg">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6">{patientToEdit ? 'Editar Paciente' : 'Agregar Nuevo Paciente'}</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label htmlFor="fullName" className="block text-gray-700 text-sm font-medium mb-2">Nombre Completo</label>
+            <input type="text" id="fullName" value={formData.fullName} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Juan Pérez García" />
+          </div>
+          <div>
+            <label htmlFor="dni" className="block text-gray-700 text-sm font-medium mb-2">DNI</label>
+            <input type="text" id="dni" value={formData.dni} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. 12345678A" />
+          </div>
+          <div>
+            <label htmlFor="rank" className="block text-gray-700 text-sm font-medium mb-2">Grado</label>
+            <input type="text" id="rank" value={formData.rank} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Sargento" />
+          </div>
+          <div>
+            <label htmlFor="currentAssignment" className="block text-gray-700 text-sm font-medium mb-2">Asignación Actual</label>
+            <input type="text" id="currentAssignment" value={formData.currentAssignment} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Urgencias" />
+          </div>
+          <div>
+            <label htmlFor="belongingAddress" className="block text-gray-700 text-sm font-medium mb-2">Dirección a la que Pertenece</label>
+            <input type="text" id="belongingAddress" value={formData.belongingAddress} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Calle Falsa 123" />
+          </div>
+          <div>
+            <label htmlFor="gender" className="block text-gray-700 text-sm font-medium mb-2">Sexo</label>
+            <select id="gender" value={formData.gender} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition">
+              <option value="">Seleccionar</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="age" className="block text-gray-700 text-sm font-medium mb-2">Edad</label>
+            <input type="number" id="age" value={formData.age} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. 45" />
+          </div>
+          <div>
+            <label htmlFor="housingOrigin" className="block text-gray-700 text-sm font-medium mb-2">Procedencia de Vivienda</label>
+            <input type="text" id="housingOrigin" value={formData.housingOrigin} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Urbana / Rural" />
+          </div>
+          <div>
+            <label htmlFor="cellphone" className="block text-gray-700 text-sm font-medium mb-2">Celular</label>
+            <input type="text" id="cellphone" value={formData.cellphone} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. 5512345678" />
+          </div>
+          <div>
+            <label htmlFor="incidentDate" className="block text-gray-700 text-sm font-medium mb-2">Fecha del Incidente</label>
+            <input type="date" id="incidentDate" value={formData.incidentDate} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" />
+          </div>
+          <div>
+            <label htmlFor="admissionDate" className="block text-gray-700 text-sm font-medium mb-2">Fecha de Ingreso Hospitalario</label>
+            <input type="date" id="admissionDate" value={formData.admissionDate} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" />
+          </div>
+          <div className="md:col-span-2">
+            <label htmlFor="incidentDetails" className="block text-gray-700 text-sm font-medium mb-2">Cómo fue el Incidente/Accidente</label>
+            <textarea id="incidentDetails" value={formData.incidentDetails} onChange={handleChange} rows="3" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition resize-none" placeholder="Detalles del incidente..."></textarea>
+          </div>
+          <div>
+            <label htmlFor="medicalDiagnosis" className="block text-gray-700 text-sm font-medium mb-2">Diagnóstico Médico</label>
+            <input type="text" id="medicalDiagnosis" value={formData.medicalDiagnosis} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Fractura de fémur" />
+          </div>
+          <div>
+            <label htmlFor="hospital" className="block text-gray-700 text-sm font-medium mb-2">Hospital</label>
+            <input type="text" id="hospital" value={formData.hospital} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Hospital Central" />
+          </div>
+          <div>
+            <label htmlFor="room" className="block text-gray-700 text-sm font-medium mb-2">Sala</label>
+            <input type="text" id="room" value={formData.room} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. 201" />
+          </div>
+          <div>
+            <label htmlFor="bed" className="block text-gray-700 text-sm font-medium mb-2">Cama</label>
+            <input type="text" id="bed" value={formData.bed} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. B" />
+          </div>
+          <div className="md:col-span-2">
+            <label htmlFor="dbsManagement" className="block text-gray-700 text-sm font-medium mb-2">Gestión Realizada por la DBS</label>
+            <textarea id="dbsManagement" value={formData.dbsManagement} onChange={handleChange} rows="3" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition resize-none" placeholder="Detalles de la gestión..."></textarea>
+          </div>
+          <div>
+            <label htmlFor="economicSupportManagedBy" className="block text-gray-700 text-sm font-medium mb-2">Apoyo Económico Gestionado por</label>
+            <select id="economicSupportManagedBy" value={formData.economicSupportManagedBy} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition">
+              <option value="">Seleccionar</option>
+              <option value="Función del Hospital Policía Nacional">Función del Hospital Policía Nacional</option>
+              <option value="Fondos de la Secretaría de Seguridad">Fondos de la Secretaría de Seguridad</option>
+              <option value="Fondos de la Dirección de Bienestar Social">Fondos de la Dirección de Bienestar Social</option>
+              <option value="Otros">Otros</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="requiresLegalDefense" className="block text-gray-700 text-sm font-medium mb-2">Amerita Defensa Jurídica</label>
+            <select id="requiresLegalDefense" value={formData.requiresLegalDefense} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition">
+              <option value="No">No</option>
+              <option value="Sí">Sí</option>
+            </select>
+          </div>
+          {formData.requiresLegalDefense === 'Sí' && (
+            <div className="md:col-span-2">
+              <label htmlFor="legalDefenseExplanation" className="block text-gray-700 text-sm font-medium mb-2">Explicación de Defensa Jurídica</label>
+              <textarea id="legalDefenseExplanation" value={formData.legalDefenseExplanation} onChange={handleChange} rows="2" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition resize-none" placeholder="Detalles de la defensa jurídica necesaria..."></textarea>
+            </div>
+          )}
+          <div>
+            <label htmlFor="assignedRest" className="block text-gray-700 text-sm font-medium mb-2">Reposo Adscrito</label>
+            <input type="text" id="assignedRest" value={formData.assignedRest} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. 90 días" />
+          </div>
+          <div>
+            <label htmlFor="dischargeDate" className="block text-gray-700 text-sm font-medium mb-2">Fecha de Alta Médica</label>
+            <input type="date" id="dischargeDate" value={formData.dischargeDate} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" />
+          </div>
+          <div className="md:col-span-2">
+            <label htmlFor="observations" className="block text-gray-700 text-sm font-medium mb-2">Observaciones Generales</label>
+            <textarea id="observations" value={formData.observations} onChange={handleChange} rows="3" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition resize-none" placeholder="Observaciones generales del caso..."></textarea>
+          </div>
+        </div>
+
+        <h3 className="text-2xl font-bold text-gray-800 mb-4">Contacto Familiar</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label htmlFor="familyContactName" className="block text-gray-700 text-sm font-medium mb-2">Nombre del Contacto</label>
+            <input type="text" id="familyContactName" value={formData.familyContactName} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Ana García" />
+          </div>
+          <div>
+            <label htmlFor="familyContactRelationship" className="block text-gray-700 text-sm font-medium mb-2">Parentesco</label>
+            <input type="text" id="familyContactRelationship" value={formData.familyContactRelationship} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Esposa" />
+          </div>
+          <div>
+            <label htmlFor="familyContactPhone" className="block text-gray-700 text-sm font-medium mb-2">Teléfono</label>
+            <input type="text" id="familyContactPhone" value={formData.familyContactPhone} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. 5587654321" />
+          </div>
+          <div className="md:col-span-3">
+            <h4 className="text-lg font-semibold text-gray-800 mb-2">Visita Hospitalaria (Contacto Familiar)</h4>
+          </div>
+          <div>
+            <label htmlFor="familyVisitorName" className="block text-gray-700 text-sm font-medium mb-2">Nombre de quien realizó la visita</label>
+            <input type="text" id="familyVisitorName" value={formData.familyVisitorName} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Agente Castillo" />
+          </div>
+          <div>
+            <label htmlFor="familyVisitorRank" className="block text-gray-700 text-sm font-medium mb-2">Grado</label>
+            <input type="text" id="familyVisitorRank" value={formData.familyVisitorRank} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Clase I" />
+          </div>
+          <div>
+            <label htmlFor="familyVisitorAddress" className="block text-gray-700 text-sm font-medium mb-2">Dirección</label>
+            <input type="text" id="familyVisitorAddress" value={formData.familyVisitorAddress} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Dirección de Bienestar Social" />
+          </div>
+          <div className="md:col-span-2">
+            <label htmlFor="familyCompanions" className="block text-gray-700 text-sm font-medium mb-2">Acompañantes</label>
+            <input type="text" id="familyCompanions" value={formData.familyCompanions} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition" placeholder="Ej. Agente Calix" />
+          </div>
+          <div className="md:col-span-3">
+            <label htmlFor="familyVisitObservations" className="block text-gray-700 text-sm font-medium mb-2">Observaciones</label>
+            <textarea id="familyVisitObservations" value={formData.familyVisitObservations} onChange={handleChange} rows="3" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition resize-none" placeholder="Observaciones de la visita al contacto familiar..."></textarea>
+          </div>
+        </div>
+
+        <h3 className="text-2xl font-bold text-gray-800 mb-4">Notas de la Primera Visita</h3>
+        <div className="mb-6">
+          <label htmlFor="initialVisitNotes" className="block text-gray-700 text-sm font-medium mb-2">Notas</label>
+          <textarea id="initialVisitNotes" value={formData.initialVisitNotes} onChange={handleChange} rows="4" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition resize-none" placeholder="Detalles de la condición inicial del paciente..."></textarea>
+        </div>
+
+        <div className="flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-3 rounded-xl text-gray-700 border border-gray-300 hover:bg-gray-100 transition-colors duration-300"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="bg-black text-white px-6 py-3 rounded-xl shadow-md hover:bg-gray-800 transition-colors duration-300"
+          >
+            {patientToEdit ? 'Guardar Cambios' : 'Agregar Paciente'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// /components/ReportView.js
+const ReportView = ({ patients, onBack }) => {
+  const totalPatients = patients.length;
+  const dischargedPatients = patients.filter(patient => patient.dischargeDate);
+  const internalPatients = patients.filter(patient => !patient.dischargeDate);
+
+  const patientsByDiagnosis = patients.reduce((acc, patient) => {
+    acc[patient.medicalDiagnosis] = (acc[patient.medicalDiagnosis] || 0) + 1;
+    return acc;
+  }, {});
+
+  const patientsByProgress = patients.reduce((acc, patient) => {
+    const lastProgress = patient.visits[patient.visits.length - 1]?.progress || 'Sin Progreso';
+    acc[lastProgress] = (acc[lastProgress] || 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto bg-white rounded-2xl shadow-lg">
+      <div className="flex justify-between items-center mb-6">
+        <button
+          onClick={onBack}
+          className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          &larr; Volver
+        </button>
+        <h2 className="text-3xl font-bold text-gray-800">Reportes de Pacientes</h2>
+        <div></div> {/* Placeholder para alinear el título */}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-gray-50 p-6 rounded-xl shadow-sm">
+          <h3 className="text-xl font-semibold text-gray-800 mb-3">Resumen General</h3>
+          <p className="text-gray-700 text-lg"><span className="font-medium">Total de Pacientes Registrados:</span> {totalPatients}</p>
+          <p className="text-gray-700 text-lg"><span className="font-medium">Pacientes Dados de Alta:</span> {dischargedPatients.length}</p>
+          <p className="text-gray-700 text-lg"><span className="font-medium">Pacientes Internos:</span> {internalPatients.length}</p>
+        </div>
+
+        <div className="bg-gray-50 p-6 rounded-xl shadow-sm">
+          <h3 className="text-xl font-semibold text-gray-800 mb-3">Pacientes por Diagnóstico</h3>
+          {Object.entries(patientsByDiagnosis).length === 0 ? (
+            <p className="text-gray-600">No hay datos de diagnóstico.</p>
+          ) : (
+            <ul className="list-disc list-inside text-gray-700">
+              {Object.entries(patientsByDiagnosis).map(([diagnosis, count]) => (
+                <li key={diagnosis}>{diagnosis}: <span className="font-medium">{count}</span></li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="bg-gray-50 p-6 rounded-xl shadow-sm col-span-full">
+          <h3 className="text-xl font-semibold text-gray-800 mb-3">Pacientes por Último Progreso</h3>
+          {Object.entries(patientsByProgress).length === 0 ? (
+            <p className="text-gray-600">No hay datos de progreso.</p>
+          ) : (
+            <ul className="list-disc list-inside text-gray-700">
+              {Object.entries(patientsByProgress).map(([progress, count]) => (
+                <li key={progress}>{progress}: <span className="font-medium">{count}</span></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <h3 className="text-2xl font-bold text-gray-800 mb-4">Listado de Pacientes Dados de Alta</h3>
+      {dischargedPatients.length === 0 ? (
+        <p className="text-gray-600">No hay pacientes dados de alta.</p>
+      ) : (
+        <ul className="bg-gray-100 p-4 rounded-xl shadow-sm space-y-2">
+          {dischargedPatients.map(patient => (
+            <li key={patient.id} className="text-gray-700 border-b border-gray-200 pb-2 last:border-b-0">
+              {patient.fullName} (Alta: {patient.dischargeDate})
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3 className="text-2xl font-bold text-gray-800 mt-8 mb-4">Listado de Pacientes Internos</h3>
+      {internalPatients.length === 0 ? (
+        <p className="text-gray-600">No hay pacientes internos actualmente.</p>
+      ) : (
+        <ul className="bg-gray-100 p-4 rounded-xl shadow-sm space-y-2">
+          {internalPatients.map(patient => (
+            <li key={patient.id} className="text-gray-700 border-b border-gray-200 pb-2 last:border-b-0">
+              {patient.fullName} (Ingreso: {patient.admissionDate})
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+// /components/PatientCard.js
+const PatientCard = ({ patient, onSelectPatient, onDeletePatient }) => {
+  return (
+    <div
+      className="bg-white rounded-2xl shadow-lg p-6 mb-4 relative"
+    >
+      <h3 className="text-xl font-semibold text-gray-900 mb-2 cursor-pointer" onClick={() => onSelectPatient(patient.id)}>{patient.fullName}</h3>
+      <p className="text-gray-600 text-sm">Diagnóstico: <span className="font-medium">{patient.medicalDiagnosis}</span></p>
+      <p className="text-gray-600 text-sm">Ingreso: <span className="font-medium">{patient.admissionDate}</span></p>
+      <div className="mt-3 flex justify-between items-center">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+          Última visita: {patient.visits[patient.visits.length - 1]?.date || 'N/A'}
+        </span>
+        <button
+          onClick={() => onDeletePatient(patient.id)}
+          className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition-colors text-sm"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// /components/PatientList.js
+const PatientList = ({ patients, onSelectPatient, onAddPatient, onDeletePatient }) => {
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-gray-800">Pacientes Registrados</h2>
+        <button
+          onClick={onAddPatient}
+          className="bg-black text-white px-6 py-3 rounded-xl shadow-md hover:bg-gray-800 transition-colors duration-300"
+        >
+          Agregar Nuevo Paciente
+        </button>
+      </div>
+      {patients.length === 0 ? (
+        <p className="text-gray-600 text-lg col-span-full text-center">No hay pacientes registrados aún.</p>
+      ) : (
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Listado de Pacientes</h3>
+          <ul className="bg-white rounded-2xl shadow-lg p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {patients.map((patient) => (
+              <li key={patient.id} className="text-gray-700 text-lg border-b border-gray-200 pb-2 last:border-b-0">
+                {patient.fullName}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {patients.map((patient) => (
+          <PatientCard key={patient.id} patient={patient} onSelectPatient={onSelectPatient} onDeletePatient={onDeletePatient} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// /App.js
+const App = () => {
+  const [currentPage, setCurrentPage] = useState('dashboard'); // 'dashboard', 'patients', 'addPatient', 'patientDetail', 'reports'
+  const [patients, setPatients] = useLocalStorage('patients', initialPatients);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+  const handleNavigate = (page) => {
+    setCurrentPage(page);
+    setSelectedPatientId(null); // Reset selected patient when changing page
+  };
+
+  const handleSavePatient = (newPatient) => {
+    setPatients((prevPatients) => {
+      const existingPatientIndex = prevPatients.findIndex(p => p.id === newPatient.id);
+      if (existingPatientIndex > -1) {
+        const updatedPatients = [...prevPatients];
+        updatedPatients[existingPatientIndex] = newPatient;
+        return updatedPatients;
+      } else {
+        return [...prevPatients, newPatient];
+      }
+    });
+    setCurrentPage('patients');
+  };
+
+  const handleSelectPatient = (id) => {
+    setSelectedPatientId(id);
+    setCurrentPage('patientDetail');
+  };
+
+  const handleAddVisit = (patientId, newVisit) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((patient) =>
+        patient.id === patientId
+          ? { ...patient, visits: [...patient.visits, newVisit], visitsCount: (patient.visitsCount || 0) + 1 }
+          : patient
+      )
+    );
+  };
+
+  const handleEditPatient = (patientId) => {
+    setSelectedPatientId(patientId);
+    setCurrentPage('addPatient'); // Reutilizamos el formulario para editar
+  };
+
+  const handleDeletePatient = (patientId) => {
+    setPatients((prevPatients) => prevPatients.filter(patient => patient.id !== patientId));
+  };
+
+  const currentPatient = selectedPatientId
+    ? patients.find((p) => p.id === selectedPatientId)
+    : null;
+
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans antialiased">
+      <LayoutHeader currentPage={currentPage} onNavigate={handleNavigate} />
+
+      <main className="container mx-auto py-8 px-4">
+        {currentPage === 'dashboard' && (
+          <div className="text-center p-10 bg-white rounded-2xl shadow-lg">
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Bienvenido a la Bitácora de Pacientes</h2>
+            <p className="text-lg text-gray-700 mb-8">
+              Dirección de Bienestar Social
+            </p>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => handleNavigate('patients')}
+                className="bg-black text-white px-8 py-4 rounded-xl shadow-lg hover:bg-gray-800 transition-colors duration-300 text-lg"
+              >
+                Ver Pacientes
+              </button>
+              <button
+                onClick={() => handleNavigate('addPatient')}
+                className="bg-blue-600 text-white px-8 py-4 rounded-xl shadow-lg hover:bg-blue-700 transition-colors duration-300 text-lg"
+              >
+                Agregar Nuevo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {currentPage === 'patients' && (
+          <PatientList
+            patients={patients}
+            onSelectPatient={handleSelectPatient}
+            onAddPatient={() => handleNavigate('addPatient')}
+            onDeletePatient={handleDeletePatient}
+          />
+        )}
+
+        {currentPage === 'addPatient' && (
+          <PatientForm
+            onSavePatient={handleSavePatient}
+            patientToEdit={currentPatient}
+            onCancel={() => handleNavigate('patients')}
+          />
+        )}
+
+        {currentPage === 'patientDetail' && currentPatient && (
+          <PatientDetail
+            patient={currentPatient}
+            onBack={() => handleNavigate('patients')}
+            onAddVisit={handleAddVisit}
+            onEditPatient={handleEditPatient}
+          />
+        )}
+
+        {currentPage === 'reports' && (
+          <ReportView
+            patients={patients}
+            onBack={() => handleNavigate('dashboard')}
+          />
+        )}
+      </main>
+    </div>
+  );
+};
+
+      const root = createRoot(document.getElementById("root"));
+            root.render(
+              <StrictMode>
+                <App />
+              </StrictMode>
+            );
+</script>
+        </body>
+      </html>
